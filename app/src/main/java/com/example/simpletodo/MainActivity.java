@@ -1,6 +1,7 @@
 package com.example.simpletodo;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -17,6 +18,12 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+
+    // a numeric code to identify the edit activity
+    public static final int EDIT_REQUEST_CODE = 20;
+    // keys used for passing data between activities
+    public static final String ITEM_TEXT = "itemText";
+    public static final String ITEM_POSITION = "itemPosition";
 
     // declaring stateful objects here; these will be null before onCreate is called
     ArrayList<String> items;
@@ -37,8 +44,8 @@ public class MainActivity extends Activity {
         lvItems.setAdapter(itemsAdapter);
 
         // add some mock items to the list
-        items.add("First todo item");
-        items.add("Second todo item");
+//        items.add("First todo item");
+//        items.add("Second todo item");
 
         // setup the listener on creation
         setupListViewListener();
@@ -58,6 +65,40 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+
+        // set the ListView's regular click listener
+        lvItems.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                // first parameter is the context, second is the class of the activity to launch
+                Intent i = new Intent(MainActivity.this, EditItemActivity.class);
+                // put "extras" into the bundle for access in the edit activity
+                i.putExtra(ITEM_TEXT, items.get(position));
+                i.putExtra(ITEM_POSITION, position);
+                // brings up the edit activity with the expectation of a result
+                startActivityForResult(i, EDIT_REQUEST_CODE);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // EDIT_REQUEST_CODE defined with constants
+        if (resultCode == RESULT_OK && requestCode == EDIT_REQUEST_CODE) {
+            // extract updated item value from result extras
+            String updatedItem = data.getExtras().getString(ITEM_TEXT);
+            // get the position of the item which was edited
+            int position = data.getExtras().getInt(ITEM_POSITION, 0);
+            // update the model with the new item text at the edited position
+            items.set(position, updatedItem);
+            // notify the adapter the model changed
+            itemsAdapter.notifyDataSetChanged();
+            // Store the updated items back to disk
+            writeItems();
+            // notify the user the operation completed OK
+            Toast.makeText(this, "Item updated", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public void onAddItem(View v) {
@@ -67,11 +108,10 @@ public class MainActivity extends Activity {
         String itemText = etNewItem.getText().toString();
         // add the item to the list via the adapter
         itemsAdapter.add(itemText);
+        // store the updated list
+        writeItems();
         // clear the EditText by setting it to an empty String
         etNewItem.setText("");
-        // display a notification to the user
-        Toast.makeText(getApplicationContext(), "Item added to list", Toast.LENGTH_SHORT).show();
-
     }
 
     // returns the file in which the data is stored
